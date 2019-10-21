@@ -1,3 +1,8 @@
+## Application
+- Player: competiting with AI
+- Designer: level design
+- Real World: driverless car
+
 ### Part 1 Detect Objects in Game
 - Game plays on Flash Player
 - ffmpeg capture streaming video from screen and send it to simulated device
