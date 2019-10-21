@@ -9,7 +9,7 @@ class linefield(object):
     _field_height = 20
     _field_width = 60
 
-    def time_step(score):
+    def time_step(self, score):
         speed_level = score if score < 19000 else 19000
         return 1000 - speed_level // 20
 
