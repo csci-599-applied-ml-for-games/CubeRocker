@@ -12,7 +12,7 @@ from simulator import Linefield
 
 
 class Agent(object):
-    def __init__(self, display=False, model_path=None, eps=0.01):
+    def __init__(self, display=False, model_path=None, eps=0.0001):
         if display:
             curses.initscr()
             self.win = curses.newwin(22, 122, 0, 0)  # game area 120*20
@@ -27,7 +27,7 @@ class Agent(object):
         self.crash_reward = -25
         self.step_reward = 25
         self.gamma = 0.9
-        self.learning_rate = 0.01
+        self.learning_rate = 0.001
         self.field_height, self.field_width = self.game.get_field_size()
         self.field_size = self.field_height * self.field_width
         self.memory = []
@@ -68,18 +68,30 @@ class Agent(object):
 
         return loaded_model
 
-    def calculate_step_reward(self, state):
-        return self.step_reward + self.gamma * np.amax(self.model.predict(state)[0])
+    def calculate_step_reward(self, state, is_crush):
+        if is_crush:
+            return self.crash_reward
+        else:
+            return self.step_reward + self.gamma * np.amax(self.model.predict(state)[0])
 
     def train_each_step(self, state, action, reward):
         target = self.model.predict(state)
         target[0][np.argmax(action)] = reward
         self.model.fit(state, target, epochs=1, verbose=0)
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+    def remember(self, state, action, reward):
+        self.memory.append((state, action, reward))
 
-    def train_model(self, epochs=100):
+    def train_each_round(self):
+        if len(self.memory) > 1000:
+            batch = random.sample(self.memory, 1000)
+        else:
+            batch = self.memory
+        for state, action, reward in batch:
+            self.train_each_step(state, action, reward)
+        self.memory = []
+
+    def train_model(self, epochs=1000):
         print("Start training...")
         epoch_id = 0
         scores = []
@@ -105,14 +117,12 @@ class Agent(object):
 
                 # update field
                 self.game.update_field()
-                if self.game.is_crash():
-                    reward = self.crash_reward
-                    self.game.stop_game()
-                else:
-                    self.game.score += 25
-                    reward = self.calculate_step_reward(new_state)
+
+                reward = self.calculate_step_reward(new_state, self.game.is_crash())
                 self.train_each_step(cur_state, action, reward)
-                # self.remember(cur_state, action, reward, new_state, game.crash)
+                self.remember(cur_state, action, reward)
+
+            self.train_each_round()
             epoch_id += 1
             scores.append(self.game.score)
             print("epoch {} reaches score {}".format(epoch_id, self.game.score))
@@ -208,10 +218,11 @@ if __name__ == '__main__':
     # curses.noecho()
     # curses.cbreak()
 
-    max_epochs = 100
+    max_epochs = 1000
     agent = Agent()
-    scores = agent.train_model(epochs=100)
+    scores = agent.train_model(epochs=max_epochs)
     print(scores)
+
     plot_seaborn(range(max_epochs), scores)
     # agent.print_test_model()
 

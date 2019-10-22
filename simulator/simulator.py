@@ -32,6 +32,10 @@ class Linefield(object):
         new_line = self.generate_each_line()
         del self.field[self._field_height - 1]
         self.field.insert(0, new_line)
+        if self.is_crash():
+            self.stop_game()
+        else:
+            self.score += 25
 
     def start_game(self):
         while self.keep_gaming_flag:
@@ -39,7 +43,6 @@ class Linefield(object):
             if self.is_crash():
                 print("Game Over, Score: " + str(self.score) + ", `esc` to Exit ")
                 return self.ship, self.score
-            self.score += 25
 
     def change_speed(self):
         time.sleep(0.001)
