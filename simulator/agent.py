@@ -1,18 +1,27 @@
 from keras.optimizers import Adam
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout
-import random
+import sys, random
 import numpy as np
 import pandas as pd
 import curses, threading, time
 from operator import add
+import matplotlib.pyplot as plt
+import seaborn as sns
 from simulator import Linefield
 
 
 class Agent(object):
     def __init__(self, display=False, model_path=None, eps=0.01):
         if display:
-            pass
+            curses.initscr()
+            self.win = curses.newwin(22, 122, 0, 0)  # game area 120*20
+            self.win.keypad(True)
+            curses.noecho()
+            curses.cbreak()
+            curses.curs_set(False)
+            self.win.border(0)
+            self.win.nodelay(True)
         self.game = Linefield()
         self.epsilon = eps
         self.crash_reward = -25
@@ -21,6 +30,7 @@ class Agent(object):
         self.learning_rate = 0.01
         self.field_height, self.field_width = self.game.get_field_size()
         self.field_size = self.field_height * self.field_width
+        self.memory = []
         if model_path is None:
             self.model = self.init_model()
         else:
@@ -58,6 +68,17 @@ class Agent(object):
 
         return loaded_model
 
+    def calculate_step_reward(self, state):
+        return self.step_reward + self.gamma * np.amax(self.model.predict(state)[0])
+
+    def train_each_step(self, state, action, reward):
+        target = self.model.predict(state)
+        target[0][np.argmax(action)] = reward
+        self.model.fit(state, target, epochs=1, verbose=0)
+
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
+
     def train_model(self, epochs=100):
         print("Start training...")
         epoch_id = 0
@@ -66,7 +87,7 @@ class Agent(object):
             # new iter/game to train the model
             self.game.__init__()
             while self.game.keep_gaming_flag:
-                # update ship
+                # update ship by the model
                 cur_state = self.get_state()
                 if random.random() < max(self.epsilon, 1 - epoch_id / epochs):
                     action = random.randint(0, 2)
@@ -86,15 +107,16 @@ class Agent(object):
                 self.game.update_field()
                 if self.game.is_crash():
                     reward = self.crash_reward
+                    self.game.stop_game()
                 else:
                     self.game.score += 25
-                    reward = self.step_reward + self.gamma * np.amax(self.model.predict(new_state)[0])
-                target = self.model.predict(cur_state)
-                target[0][np.argmax(action)] = reward
-                self.model.fit(cur_state, target, epochs=1, verbose=0)
+                    reward = self.calculate_step_reward(new_state)
+                self.train_each_step(cur_state, action, reward)
+                # self.remember(cur_state, action, reward, new_state, game.crash)
             epoch_id += 1
             scores.append(self.game.score)
             print("epoch {} reaches score {}".format(epoch_id, self.game.score))
+        self.save_model(self.model)
         return scores
 
     def test_model(self):
@@ -134,9 +156,62 @@ class Agent(object):
 
         return state.reshape((1, self.field_size))
 
+    def print_state(self, state):
+        output = '\n' + "=" * (self.field_width + 2) + '\n'
+        state = state.reshape((self.field_height, self.field_width))
+        for line in state:
+            for item in line:
+                if item == 0:
+                    output += ' '
+                elif item == 1:
+                    output += '_'
+                else:
+                    output += '^'
+            output += '|\n|'
+        output += "=" * (self.field_width + 2)
+        print(output)
+
+    def print_test_model(self):
+        model_thread = threading.Thread(target=self.test_model)
+        model_thread.start()
+
+        while self.game.keep_gaming_flag:
+            self.win.border(0)
+            self.win.addstr(0, 2, 'Score : ' + str(self.game.score) + ' ')  # Printing 'Score'
+            self.win.addstr(0, 40, ' LineField in Python ')
+            self.win.timeout(30)  # refresh rate
+
+            cur_field, ship = self.game.get_game_status()
+
+            # print field, extra 1 is offset for border
+            for i in range(0, self.field_height):
+                for j in range(0, self.field_width):
+                    cur_val = cur_field[i][j]
+                    self.win.addch(i + 1, j * 2 + 1, cur_val)
+                    self.win.addch(i + 1, j * 2 + 2, cur_val)
+            # print ship, extra 1 is offset for border
+            self.win.addch(ship[0] + 1, ship[1] * 2 + 1, '/')
+            self.win.addch(ship[0] + 1, ship[1] * 2 + 2, '\\')
+
+        game_thread.join()
+
+
+def plot_seaborn(x, y):
+    sns.set(color_codes=True)
+    ax = sns.regplot(np.array([x])[0], np.array([y])[0], color="b", x_jitter=.1, line_kws={'color':'green'})
+    ax.set(xlabel='games', ylabel='score')
+    plt.show()
+
 
 if __name__ == '__main__':
+    # stdscr = curses.initscr()
+    # curses.noecho()
+    # curses.cbreak()
+
+    max_epochs = 100
     agent = Agent()
-    scores = agent.train_model(epochs=5)
+    scores = agent.train_model(epochs=100)
     print(scores)
+    plot_seaborn(range(max_epochs), scores)
+    # agent.print_test_model()
 
