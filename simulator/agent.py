@@ -1,11 +1,12 @@
 from keras.optimizers import Adam
-from keras.models import Sequential
+from keras.models import Sequential, model_from_json
 from keras.layers.core import Dense, Dropout
 import sys, random
 import numpy as np
 import pandas as pd
 import curses, threading, time
 from operator import add
+from collections import deque
 import matplotlib.pyplot as plt
 import seaborn as sns
 from simulator import Linefield
@@ -24,13 +25,13 @@ class Agent(object):
             self.win.nodelay(True)
         self.game = Linefield()
         self.epsilon = eps
-        self.crash_reward = -25
-        self.step_reward = 25
+        self.crash_reward = -100
+        self.step_reward = 5
         self.gamma = 0.9
         self.learning_rate = 0.001
         self.field_height, self.field_width = self.game.get_field_size()
         self.field_size = self.field_height * self.field_width
-        self.memory = []
+        self.memory = deque(maxlen=2000)
         if model_path is None:
             self.model = self.init_model()
         else:
@@ -72,7 +73,7 @@ class Agent(object):
         if is_crush:
             return self.crash_reward
         else:
-            return self.step_reward + self.gamma * np.amax(self.model.predict(state)[0])
+            return self.step_reward + self.gamma * np.amax(self.model.predict(state))
 
     def train_each_step(self, state, action, reward):
         target = self.model.predict(state)
@@ -83,18 +84,18 @@ class Agent(object):
         self.memory.append((state, action, reward))
 
     def train_each_round(self):
-        if len(self.memory) > 1000:
-            batch = random.sample(self.memory, 1000)
+        if len(self.memory) > 32:
+            batch = random.sample(self.memory, 32)
         else:
             batch = self.memory
         for state, action, reward in batch:
             self.train_each_step(state, action, reward)
-        self.memory = []
 
     def train_model(self, epochs=1000):
         print("Start training...")
         epoch_id = 0
         scores = []
+        max_score, max_idx = 0, 0
         while epoch_id < epochs:
             # new iter/game to train the model
             self.game.__init__()
@@ -125,19 +126,20 @@ class Agent(object):
             self.train_each_round()
             epoch_id += 1
             scores.append(self.game.score)
+            if self.game.score > max_score:
+                max_score = self.game.score
+                max_idx = epoch_id
+                self.save_model(self.model)
             print("epoch {} reaches score {}".format(epoch_id, self.game.score))
-        self.save_model(self.model)
+        print("epoch {} reaches score {}".format(max_idx, max_score))
         return scores
 
     def test_model(self):
         while self.game.keep_gaming_flag:
             # update ship
             cur_state = self.get_state()
-            if random.random() < max(self.epsilon, 1 - epoch_id / epochs):
-                action = randint(0, 2)
-            else:
-                pred = self.model.predict(cur_state)
-                action = np.argmax(pred[0])
+            pred = self.model.predict(cur_state)
+            action = np.argmax(pred[0])
             if action == 1:
                 self.game.move_left()
             elif action == 2:
@@ -148,10 +150,6 @@ class Agent(object):
 
             # update field
             self.game.update_field()
-            if self.is_crash():
-                print("Game Over, Score: " + str(self.game.score) + ", `esc` to Exit ")
-                return self.game.ship, self.game.score
-            self.game.score += 25
             self.game.change_speed()
 
     def get_state(self):
@@ -203,7 +201,7 @@ class Agent(object):
             self.win.addch(ship[0] + 1, ship[1] * 2 + 1, '/')
             self.win.addch(ship[0] + 1, ship[1] * 2 + 2, '\\')
 
-        game_thread.join()
+        model_thread.join()
 
 
 def plot_seaborn(x, y):
@@ -214,15 +212,17 @@ def plot_seaborn(x, y):
 
 
 if __name__ == '__main__':
-    # stdscr = curses.initscr()
-    # curses.noecho()
-    # curses.cbreak()
 
-    max_epochs = 1000
-    agent = Agent()
-    scores = agent.train_model(epochs=max_epochs)
-    print(scores)
+    # max_epochs = 100
+    # agent = Agent()
+    # scores = agent.train_model(epochs=max_epochs)
+    # print(scores)
+    # plot_seaborn(range(max_epochs), scores)
 
-    plot_seaborn(range(max_epochs), scores)
-    # agent.print_test_model()
+    stdscr = curses.initscr()
+    curses.noecho()
+    curses.cbreak()
+    agent = Agent(display=True, model_path='model.json')
+    agent.print_test_model()
+
 
