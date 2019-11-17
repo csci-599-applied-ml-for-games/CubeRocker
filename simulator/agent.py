@@ -13,7 +13,7 @@ from simulator import Linefield
 
 
 class Agent(object):
-    def __init__(self, display=False, model_path=None, eps=0.0001):
+    def __init__(self, display=False, model_path=None, init_epsilon=0.8, decay_epsilon=0.8):
         if display:
             curses.initscr()
             self.win = curses.newwin(22, 122, 0, 0)  # game area 120*20
@@ -24,7 +24,8 @@ class Agent(object):
             self.win.border(0)
             self.win.nodelay(True)
         self.game = Linefield()
-        self.epsilon = eps
+        self.init_epsilon = init_epsilon
+        self.decay_epsilon = decay_epsilon
         self.crash_reward = -100
         self.step_reward = 5
         self.gamma = 0.9
@@ -39,7 +40,8 @@ class Agent(object):
 
     def init_model(self):
         model = Sequential()
-        model.add(Dense(output_dim=120, activation='relu', input_dim=self.field_size))
+        # model.add(Dense(output_dim=120, activation='relu', input_dim=self.field_size))
+        model.add(Dense(output_dim=120, activation='relu', input_dim=self.field_height * 3))
         model.add(Dropout(0.15))
         model.add(Dense(activation='relu', units=120))
         model.add(Dropout(0.15))
@@ -77,7 +79,8 @@ class Agent(object):
 
     def train_each_step(self, state, action, reward):
         target = self.model.predict(state)
-        target[0][np.argmax(action)] = reward
+        target[0][action] = reward
+        # print("train each step: target: {}; action: {}".format(target, action))
         self.model.fit(state, target, epochs=1, verbose=0)
 
     def remember(self, state, action, reward):
@@ -99,13 +102,20 @@ class Agent(object):
         while epoch_id < epochs:
             # new iter/game to train the model
             self.game.__init__()
+            actions, rewards = [], []
+            eps = self.init_epsilon
+            game_idx = 0
             while self.game.keep_gaming_flag:
                 # update ship by the model
                 cur_state = self.get_state()
-                if random.random() < max(self.epsilon, 1 - epoch_id / epochs):
+                if game_idx > 18:
+                    eps *= self.decay_epsilon
+                # if random.random() < max(self.epsilon, 1 - epoch_id / epochs):
+                if random.random() < eps:
                     action = random.randint(0, 2)
                 else:
                     pred = self.model.predict(cur_state)
+                    # print('pred:', pred)
                     action = np.argmax(pred[0])
                 if action == 1:
                     self.game.move_left()
@@ -120,8 +130,12 @@ class Agent(object):
                 self.game.update_field()
 
                 reward = self.calculate_step_reward(new_state, self.game.is_crash())
+                # if action != 0:
+                #     reward += 2
                 self.train_each_step(cur_state, action, reward)
                 self.remember(cur_state, action, reward)
+                actions.append(action)
+                rewards.append(reward)
 
             self.train_each_round()
             epoch_id += 1
@@ -131,15 +145,21 @@ class Agent(object):
                 max_idx = epoch_id
                 self.save_model(self.model)
             print("epoch {} reaches score {}".format(epoch_id, self.game.score))
+            print("actions: {}".format(actions))
+            print("rewards: {}".format(rewards))
         print("epoch {} reaches score {}".format(max_idx, max_score))
         return scores
 
     def test_model(self):
+        # print_thread = threading.Thread(target=self.test_model)
+        # print_thread.start()
+
         while self.game.keep_gaming_flag:
             # update ship
             cur_state = self.get_state()
             pred = self.model.predict(cur_state)
             action = np.argmax(pred[0])
+            print("action:", action)
             if action == 1:
                 self.game.move_left()
             elif action == 2:
@@ -152,22 +172,47 @@ class Agent(object):
             self.game.update_field()
             self.game.change_speed()
 
+            self.print_state(cur_state)
+
+        # print_thread.join()
+        return self.game.score
+
     def get_state(self):
         # 0: empty, 1: field, 2: ship
-        state = np.zeros((self.field_height, self.field_width), dtype=int)
-        for i in range(self.field_height):
-            for j in range(self.field_width):
+        # state = np.zeros((self.field_height, self.field_width), dtype=int)
+        # for i in range(self.field_height):
+        #     for j in range(self.field_width):
+        #         if self.game.field[i][j] == '_':
+        #             state[i][j] = 1
+        #
+        # state[self.game.ship[0]][self.game.ship[1]] = 2
+        state = np.zeros((self.field_height, 3), dtype=float)
+        i, j = 0, 0
+        while i < self.field_height:
+            j = 0
+            cube = 0
+            while j < self.game.ship[1]:
                 if self.game.field[i][j] == '_':
-                    state[i][j] = 1
+                    cube += 1
+                j += 1
+            state[i][0] = cube / min(1, self.game.ship[1])
+            state[i][1] = 1 if self.game.field[i][j] == '_' else 0
+            j += 1
+            cube = 0
+            while j < self.field_width:
+                if self.game.field[i][j] == '_':
+                    cube += 1
+                j += 1
+            state[i][2] = cube / min(1, self.game.ship[1])
+            i += 1
 
-        state[self.game.ship[0]][self.game.ship[1]] = 2
-
-        return state.reshape((1, self.field_size))
+        return state.reshape((1, -1))
 
     def print_state(self, state):
-        output = '\n' + "=" * (self.field_width + 2) + '\n'
+        output = "=" * (self.field_width + 2) + '\n'
         state = state.reshape((self.field_height, self.field_width))
         for line in state:
+            output += '|'
             for item in line:
                 if item == 0:
                     output += ' '
@@ -175,13 +220,16 @@ class Agent(object):
                     output += '_'
                 else:
                     output += '^'
-            output += '|\n|'
-        output += "=" * (self.field_width + 2)
+            output += '|\n'
+        output += "=" * (self.field_width + 2) + '\n'
         print(output)
 
+        # stdscr.addstr(output)
+        # stdscr.refresh()
+
     def print_test_model(self):
-        model_thread = threading.Thread(target=self.test_model)
-        model_thread.start()
+        # model_thread = threading.Thread(target=self.test_model)
+        # model_thread.start()
 
         while self.game.keep_gaming_flag:
             self.win.border(0)
@@ -201,7 +249,7 @@ class Agent(object):
             self.win.addch(ship[0] + 1, ship[1] * 2 + 1, '/')
             self.win.addch(ship[0] + 1, ship[1] * 2 + 2, '\\')
 
-        model_thread.join()
+        # model_thread.join()
 
 
 def plot_seaborn(x, y):
@@ -213,16 +261,21 @@ def plot_seaborn(x, y):
 
 if __name__ == '__main__':
 
-    # max_epochs = 100
-    # agent = Agent()
-    # scores = agent.train_model(epochs=max_epochs)
-    # print(scores)
-    # plot_seaborn(range(max_epochs), scores)
+    max_epochs = 1000
+    agent = Agent()
+    scores = agent.train_model(epochs=max_epochs)
+    print(scores)
+    plot_seaborn(range(max_epochs), scores)
 
-    stdscr = curses.initscr()
-    curses.noecho()
-    curses.cbreak()
-    agent = Agent(display=True, model_path='model.json')
-    agent.print_test_model()
+    # agent = Agent(model_path='model.json')
+    # score = agent.test_model()
+    # print(score)
+
+    # stdscr = curses.initscr()
+    # curses.noecho()
+    # curses.cbreak()
+    # agent = Agent(display=False, model_path='model.json')
+    # score = agent.test_model()
+    # print(score)
 
 

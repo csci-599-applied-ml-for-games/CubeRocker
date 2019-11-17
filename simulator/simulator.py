@@ -35,7 +35,7 @@ class Linefield(object):
         if self.is_crash():
             self.stop_game()
         else:
-            self.score += 25
+            self.score += 1
 
     def start_game(self):
         while self.keep_gaming_flag:

@@ -7,11 +7,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-# Set options to activate or deactivate the game view, and its speed
-display_option = True
-speed = 0
-pygame.font.init()
-
 
 class Game:
 
@@ -26,7 +21,6 @@ class Game:
         self.field = Field(game_width, game_height)
         self.score = 0
         
-
 
 class Player(object):
 
@@ -96,7 +90,6 @@ class Field(object):
                     game.gameDisplay.blit(self.image, (j * 20, i * 20)) # grid is height first
         update_screen()
 
-
     def generate_new_line(self, player, game):
         cur_line = []
         for i in range(0, self.width):
@@ -107,7 +100,6 @@ class Field(object):
                 cur_line.append(0)
         game.score = game.score + 25
         return cur_line
-
 
 
 def get_record(score, record):
@@ -158,19 +150,20 @@ def plot_seaborn(array_counter, array_score):
     ax.set(xlabel='games', ylabel='score')
     plt.show()
 
-def run():
+
+def train(epoch=10):
     pygame.init()
     agent = DQNAgent()
     counter_games = 0
     score_plot = []
-    counter_plot =[]
+    counter_plot = []
     record = 0
-    while counter_games < 150:
+    while counter_games < epoch:
         # Initialize classes
         game = Game(440, 440)
         player1 = game.player
         field0 = game.field
-        
+
 
         # Perform first move
         initialize_game(player1, game, field0, agent)
@@ -180,10 +173,10 @@ def run():
         while not game.crash:
             #agent.epsilon is set to give randomness to actions
             agent.epsilon = 80 - counter_games
-            
+
             #get old state
             state_old = agent.get_state(game, player1, field0)
-            
+
             #perform random actions based on agent.epsilon, or choose the action
             if randint(0, 200) < agent.epsilon:
                 final_move = randint(0, 2)
@@ -191,24 +184,24 @@ def run():
                 # predict action based on the old state
                 prediction = agent.model.predict(state_old)
                 final_move = np.argmax(prediction[0])
-                
+
             #perform new move and get new state
             player1.do_move(final_move, field0, game)
             state_new = agent.get_state(game, player1, field0)
-            
+
             #set treward for the new state
             reward = agent.set_reward(player1, game.crash)
-            
+
             #train short memory base on the new action and state
             agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)
-            
+
             # store the new data into a long term memory
             agent.remember(state_old, final_move, reward, state_new, game.crash)
             record = get_record(game.score, record)
             if display_option:
                 display(player1, field0, game, record)
                 pygame.time.wait(speed)
-        
+
         agent.replay_new(agent.memory)
         counter_games += 1
         print('Game', counter_games, '      Score:', game.score)
@@ -218,4 +211,42 @@ def run():
     plot_seaborn(counter_plot, score_plot)
 
 
-run()
+def test():
+    pygame.init()
+    agent = DQNAgent()
+    agent.model.load_weights('weights.hdf5')
+    # while counter_games < 150:
+    # Initialize classes
+    game = Game(440, 440)
+    player1 = game.player
+    field0 = game.field
+
+    # Perform first move
+    record = 0
+    initialize_game(player1, game, field0, agent)
+    if display_option:
+        display(player1, field0, game, record)
+
+    while not game.crash:
+        # get old state
+        state_old = agent.get_state(game, player1, field0)
+
+        # predict action based on the old state
+        prediction = agent.model.predict(state_old)
+        final_move = np.argmax(prediction[0])
+
+        # perform new move and get new state
+        player1.do_move(final_move, field0, game)
+
+        record = get_record(game.score, record)
+        if display_option:
+            display(player1, field0, game, record)
+            pygame.time.wait(speed)
+
+
+if __name__ == "__main__":
+    # Set options to activate or deactivate the game view, and its speed
+    display_option = False
+    speed = 0
+    pygame.font.init()
+    train()
