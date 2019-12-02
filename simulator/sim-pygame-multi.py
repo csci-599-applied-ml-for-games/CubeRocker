@@ -1,4 +1,4 @@
-import pygame, sys
+import pygame
 from random import randint
 from DQN import DQNAgent
 import numpy as np
@@ -53,6 +53,14 @@ class Player(object):
         elif move == 2:  # right
             if self.x < int(game.game_width / 20) - 2:
                 self.x += 1
+                move = 0
+        elif move == 3: # up
+            if self.y < int(game.game_height / 20) - 2:
+                self.y += 1
+                move = 0
+        elif move == 4: # down
+            if self.y > 0:
+                self.y -= 1
                 move = 0
         field.field_update(game, self)
         pygame.time.wait(300)
@@ -164,7 +172,7 @@ def plot_seaborn(array_counter, array_score):
 
 def train(epoch=10):
     pygame.init()
-    agent = DQNAgent(output_dim=3)
+    agent = DQNAgent(output_dim=5)
     counter_games = 0
     score_plot = []
     counter_plot = []
@@ -234,14 +242,14 @@ def train(epoch=10):
         print('Game', counter_games, '      Score:', game.score)
         score_plot.append(game.score)
         counter_plot.append(counter_games)
-    agent.model.save_weights('weights.hdf5')
+    agent.model.save_weights('weights_multi.hdf5')
     plot_seaborn(counter_plot, score_plot)
 
 
 def test():
     pygame.init()
-    agent = DQNAgent(output_dim=3)
-    agent.model.load_weights('weights.hdf5')
+    agent = DQNAgent(output_dim=5)
+    agent.model.load_weights('weights_multi.hdf5')
     # while counter_games < 150:
     # Initialize classes
     game = Game(440, 440)
@@ -261,7 +269,6 @@ def test():
         # predict action based on the old state
         prediction = agent.model.predict(state_old)
         final_move = np.argmax(prediction[0])
-        print("move {} with prediction : {}".format(final_move, prediction))
 
         # perform new move and get new state
         player1.do_move(final_move, field0, game)
@@ -277,7 +284,4 @@ if __name__ == "__main__":
     display_option = True
     speed = 0
     pygame.font.init()
-    if sys.argv[1] == "train":
-        train(epoch=int(sys.argv[2]))
-    else:
-        test()
+    train()

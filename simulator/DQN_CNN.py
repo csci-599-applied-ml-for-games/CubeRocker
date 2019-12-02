@@ -9,7 +9,7 @@ from operator import add
 
 class DQNAgent(object):
 
-    def __init__(self):
+    def __init__(self, output_dim=3):
         self.reward = 0
         self.gamma = 0.9
         self.dataframe = pd.DataFrame()
@@ -20,8 +20,11 @@ class DQNAgent(object):
         self.epsilon = 0
         self.actual = []
         self.memory = []
+        
+        self.input_dimension = 22 * 22
+        self.hidden_dimension = 120 
+        self.output_dimension = output_dim # number of moves
         self.model = self.network()
-        # self.model = self.network("weights.hdf5")
 
     def set_reward(self, player, crash):
         self.reward = 0
@@ -48,10 +51,6 @@ class DQNAgent(object):
 
     def network(self, weights=None):
         # linear model
-
-        self.input_dimension = 22 * 22
-        self.hidden_dimension = 120 
-        self.output_dimension = 3 # number of moves
 
         model = Sequential()
         model.add(Conv2D(64, kernel_size=3, activation='relu', input_shape=(22,22,1)))
