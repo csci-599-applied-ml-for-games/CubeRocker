@@ -280,10 +280,10 @@ if __name__ == "__main__":
     display_option = False
     speed = 0
     pygame.font.init()
-    modelFile = sys.argv[3]
     if len(sys.argv) < 4:
         print("Usage: python sim-py-game-<version>.py train/test numberOfEpoch modelFolder")
         exit
+    modelFile = sys.argv[3]
     if sys.argv[1] == "train":
         train(epoch=int(sys.argv[2]))
     else:
