@@ -93,8 +93,19 @@ class Field(object):
     def generate_new_line(self, player, game):
         cur_line = []
         for i in range(0, self.width):
-            random_val= randint(1, 100)
-            if random_val == 20 or random_val == 40 or random_val == 60 or random_val == 80 or random_val == 100:
+            random_val= randint(0, 100)
+            # set the maximum number of cubes in the new line according to the current score
+            if game.score < 1000:
+                num_cubes = 1
+            elif game.score < 1500:
+                num_cubes = 2
+            elif game.score < 2000:
+                num_cubes = 3
+            elif game.score < 2500:
+                num_cubes = 4
+            else:
+                num_cubes = 5
+            if random_val in range(num_cubes):
                 cur_line.append(1)
             else:
                 cur_line.append(0)
@@ -246,7 +257,7 @@ def test():
 
 if __name__ == "__main__":
     # Set options to activate or deactivate the game view, and its speed
-    display_option = False
+    display_option = True
     speed = 0
     pygame.font.init()
     train()

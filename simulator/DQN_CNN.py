@@ -31,7 +31,7 @@ class DQNAgent(object):
         else:
             self.reward = 2
         return self.reward
-
+    
     def get_state(self, game, player, field):
         # return a vector of int to represent the position
         # 0: empty, 1: field, 2: ship
@@ -44,8 +44,7 @@ class DQNAgent(object):
 
         state[player.x][player.y] = 2
 
-        return state.reshape((1, 22 * 22))
-        # return np.asarray(state)
+        return state.reshape((1, 22, 22, 1))
 
     def network(self, weights=None):
         # linear model
@@ -55,12 +54,9 @@ class DQNAgent(object):
         self.output_dimension = 3 # number of moves
 
         model = Sequential()
-        model.add(Dense(output_dim=self.hidden_dimension, activation='relu', input_dim=self.input_dimension))
-        model.add(Dropout(0.15))
-        model.add(Dense(output_dim=self.hidden_dimension, activation='relu'))
-        model.add(Dropout(0.15))
-        model.add(Dense(output_dim=self.hidden_dimension, activation='relu'))
-        model.add(Dropout(0.15))
+        model.add(Conv2D(64, kernel_size=3, activation='relu', input_shape=(22,22,1)))
+        model.add(Conv2D(32, kernel_size=3, activation='relu'))
+        model.add(Flatten())
         model.add(Dense(output_dim=self.output_dimension, activation='softmax'))
         opt = Adam(self.learning_rate)
         model.compile(loss='mse', optimizer=opt)
