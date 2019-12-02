@@ -192,13 +192,13 @@ def train(epoch=10):
             #perform random actions based on agent.epsilon, or choose the action
             if randint(0, 100) < agent.epsilon:
                 final_move = randint(0, 4)
-                print("random with prob {}".format(agent.epsilon))
+                # print("random with prob {}".format(agent.epsilon))
             else:
                 # predict action based on the old state
                 prediction = agent.model.predict(state_old)
                 final_move = np.argmax(prediction[0])
-                print("prediction : {}".format(prediction))
-            print("move: {} to position ({}, {})".format(final_move, player1.x, player1.y))
+                # print("prediction : {}".format(prediction))
+            # print("move: {} to position ({}, {})".format(final_move, player1.x, player1.y))
 
             #perform new move and get new state
             player1.do_move(final_move, field0, game)
@@ -214,13 +214,13 @@ def train(epoch=10):
                 # store the new data into a long term memory
                 if game.crash:
                     agent.remember(state_old, final_move, reward, state_new, game.crash)
-                    print("remember this move with reward {}".format(reward))
+                    # print("remember this move with reward {}".format(reward))
                 elif final_move == 0 and randint(1, 20) < 1:
                     agent.remember(state_old, final_move, reward, state_new, game.crash)
-                    print("remember this move with reward {}".format(reward))
+                    # print("remember this move with reward {}".format(reward))
                 elif final_move != 0 and randint(1, 20) < 5:
                     agent.remember(state_old, final_move, reward, state_new, game.crash)
-                    print("remember this move with reward {}".format(reward))
+                    # print("remember this move with reward {}".format(reward))
 
             record = get_record(game.score, record)
             if display_option:
@@ -234,7 +234,10 @@ def train(epoch=10):
         print('Game', counter_games, '      Score:', game.score)
         score_plot.append(game.score)
         counter_plot.append(counter_games)
-    agent.model.save_weights('weights.hdf5')
+
+        if game.score >= record:
+            agent.model.save_weights(modelFile + '/weights.hdf5')
+    agent.model.save_weights(modelFile + '/weightsFinal.hdf5')
     plot_seaborn(counter_plot, score_plot)
 
 
@@ -268,15 +271,18 @@ def test():
 
         record = get_record(game.score, record)
         if display_option:
-            display(player1, field0, game, record)
             pygame.time.wait(speed)
+            display(player1, field0, game, record)
 
 
 if __name__ == "__main__":
     # Set options to activate or deactivate the game view, and its speed
-    display_option = True
+    display_option = False
     speed = 0
     pygame.font.init()
+    modelFile = sys.argv[3]
+    if len(sys.argv) < 4:
+        print("Usage: python sim-py-game-<version>.py train/test numberOfEpoch modelFolder")
     if sys.argv[1] == "train":
         train(epoch=int(sys.argv[2]))
     else:
