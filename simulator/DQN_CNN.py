@@ -26,7 +26,7 @@ class DQNAgent(object):
         self.output_dimension = output_dim # number of moves
         self.model = self.network()
 
-    def set_reward(self, player, crash):
+    def set_reward(self, player, crash, action):
         self.reward = 0
         if crash:
             self.reward = -25

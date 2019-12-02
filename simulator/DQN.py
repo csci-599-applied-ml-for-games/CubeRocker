@@ -38,7 +38,7 @@ class DQNAgent(object):
             self.reward = 5
         return self.reward
 
-    def get_state(self, game, player, field):
+    def get_state(self, game, player, field, players=[]):
         # return a vector of int to represent the position
         # 0: empty, 1: field, 2: ship
 
@@ -47,6 +47,9 @@ class DQNAgent(object):
             for j in range(field.width):
                 if field.grid[i][j] == 1:
                     state[i][j] = 1
+
+        for p in players:
+            state[p.x][p.y] = 1
 
         state[player.x][player.y] = 2
 
