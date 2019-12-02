@@ -1,4 +1,4 @@
-import pygame, sys
+import pygame, sys, os
 from random import randint
 from DQN import DQNAgent
 import numpy as np
@@ -280,10 +280,21 @@ if __name__ == "__main__":
     display_option = False
     speed = 0
     pygame.font.init()
+
+    # model file folder creation 
     if len(sys.argv) < 4:
         print("Usage: python sim-py-game-<version>.py train/test numberOfEpoch modelFolder")
         sys.exit()
     modelFile = sys.argv[3]
+    try:
+        os.mkdir(modelFile)
+    except OSError:
+        print ("Creation of the directory %s failed" % modelFile)
+    else:
+        print ("Successfully created the directory %s " % modelFile)
+    modelFile = sys.argv[3]
+
+
     if sys.argv[1] == "train":
         train(epoch=int(sys.argv[2]))
     else:
