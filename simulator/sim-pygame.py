@@ -283,6 +283,7 @@ if __name__ == "__main__":
     modelFile = sys.argv[3]
     if len(sys.argv) < 4:
         print("Usage: python sim-py-game-<version>.py train/test numberOfEpoch modelFolder")
+        exit
     if sys.argv[1] == "train":
         train(epoch=int(sys.argv[2]))
     else:
