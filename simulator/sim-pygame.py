@@ -55,7 +55,7 @@ class Player(object):
                 self.x += 1
                 move = 0
         field.field_update(game, self)
-        pygame.time.wait(300)
+        pygame.time.wait(move_pause)
 
     def display_player(self, game):
 
@@ -63,7 +63,7 @@ class Player(object):
             game.gameDisplay.blit(self.image, (self.x * 20, self.y * 20))
             update_screen()
         else:
-            pygame.time.wait(30)
+            pygame.time.wait(display_pause)
 
 
 class Field(object):
@@ -277,8 +277,10 @@ def test():
 
 if __name__ == "__main__":
     # Set options to activate or deactivate the game view, and its speed
-    display_option = False
+    display_option = True
     speed = 0
+    display_pause = 50
+    move_pause = 10
     pygame.font.init()
 
     # model file folder creation 
