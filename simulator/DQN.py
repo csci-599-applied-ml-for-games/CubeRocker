@@ -49,12 +49,29 @@ class DQNAgent(object):
                     state[i][j] = 1
 
         for p in players:
-            state[p.x][p.y] = 1
+            state[p.y][p.x] = 1
 
-        state[player.x][player.y] = 2
+        state[player.y][player.x] = 2
 
         return state.reshape((1, 22 * 22))
         # return np.asarray(state)
+    
+    def get_state_pos(self, game, player_x, player_y, field, players=[]):
+        # return a vector of int to represent the position
+        # 0: empty, 1: field, 2: ship
+
+        state = np.zeros((field.height, field.width), dtype=int)
+        for i in range(field.height):
+            for j in range(field.width):
+                if field.grid[i][j] == 1:
+                    state[i][j] = 1
+
+        for p in players:
+            state[p.y][p.x] = 1
+
+        state[player_y][player_x] = 2
+
+        return state.reshape((1, 22 * 22))
 
     def network(self, weights=None):
         # linear model
