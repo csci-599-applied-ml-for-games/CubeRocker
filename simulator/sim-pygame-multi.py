@@ -78,7 +78,7 @@ class Player(object):
 
         
 
-        pygame.time.wait(300)
+        pygame.time.wait(move_pause_time)
 
         return if_crash
 
@@ -89,7 +89,7 @@ class Player(object):
                 game.gameDisplay.blit(self.image, (self.x * 20, self.y * 20))
                 update_screen()
             else:
-                pygame.time.wait(30)
+                pygame.time.wait(display_pause_time)
 
 
 class Field(object):
@@ -127,15 +127,15 @@ class Field(object):
             # set the maximum number of cubes in the new line according to the current score
             s = max(game.player1.score, game.player2.score)
             if s < 1000:
-                num_cubes = 1
-            elif s < 1500:
-                num_cubes = 2
-            elif s < 2000:
                 num_cubes = 3
-            elif s < 2500:
+            elif s < 1500:
                 num_cubes = 4
-            else:
+            elif s < 2000:
                 num_cubes = 5
+            elif s < 2500:
+                num_cubes = 6
+            else:
+                num_cubes = 7
             if random_val < num_cubes:
                 cur_line.append(1)
             else:
@@ -236,6 +236,7 @@ def train(epoch=10):
         print('Game', counter_games, '      Score:', game.player1.score, game.player2.score)
         score_plot.append(game.player1.score)
         counter_plot.append(counter_games)
+        print(counter_plot)
     agent.model.save_weights('weights_multi.hdf5')
     plot_seaborn(counter_plot, score_plot)
 
@@ -317,6 +318,8 @@ if __name__ == "__main__":
     # Set options to activate or deactivate the game view, and its speed
     display_option = True
     speed = 0
+    move_pause_time = 100
+    display_pause_time = 10
     pygame.font.init()
     if sys.argv[1] == "train":
         train(epoch=int(sys.argv[2]))
